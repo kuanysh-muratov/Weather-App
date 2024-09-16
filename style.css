@@ -1,0 +1,159 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body{
+    height: 100vh;
+    width: 100vw;
+    padding: 50px;
+
+    background-image: url(./images/background.png);
+    background-position: center center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-color: rgba(0, 0, 0, 0.5);
+    background-blend-mode: darken;
+
+
+    font-family: system-ui, sans-serif;
+    color: white;
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.today{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.first.column{
+    display: flex;
+    flex-direction: column;
+}
+
+
+
+.description{
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.city{
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+}
+.dateTime{
+    font-size: 0.8rem;
+    margin-bottom: 15px;
+}
+.temp{
+    font-size: 3.3rem;
+}
+.icon{
+    height: 150px;
+    width: 150px;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+.search>*{
+    background-color: transparent;
+    border: none;
+}
+.search{
+    border-bottom: 2px solid white;
+    width: 185px;
+}
+input{
+    padding: 5px;
+    color: white;
+    width: 160px;
+    overflow: hidden;
+}
+::placeholder{
+    color: white;
+}
+input:focus{
+    outline:none;
+}
+button{
+   background-image: url(./images/search-button.png);
+   background-position: center left;
+   background-size: contain;
+   background-repeat: no-repeat;
+
+   height: 15px;
+   width: 15px;
+}
+
+.second.column{
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.second.column>div{
+    height: 70px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+}
+.second.column img{
+    height: 90%;
+    width: 70px;
+}
+.second.column>div>div{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+}
+
+.week{
+    display: flex;
+    justify-content: space-between;
+}
+.card{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.card>img{
+    width: 100px;
+    height: 100px;
+}
+.card>p:nth-child(1){
+    font-size: 1.4rem;
+}
+.card>div>p:nth-child(1){
+    font-size: 2rem;
+    font-weight: bold;
+}
+.card>div>p:nth-child(2){
+    margin-top: 5px;
+    font-size: 1rem;
+}
+
+
+.err{
+    margin-top: 5px;
+    font-size: 0.8rem;
+    color: red;
+}
+
+.loading {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    font-weight: bold;
+    color: white;
+}
+.hidden {
+    display: none;
+}
