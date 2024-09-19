@@ -250,5 +250,4 @@ function buildSearch(){
     return search;
 }
 
-
 getTemperature("Daejeon");
