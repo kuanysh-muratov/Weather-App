@@ -1,4 +1,11 @@
-const weatherIconMap = {
+const CONFIG = {
+    API_KEY: 'JW4Y277F9AQERBFM6RHGZ3AH4',
+    WEATHER_API_BASE_URL: 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/',
+    TIME_API_BASE_URL: 'http://worldtimeapi.org/api/timezone/',
+    DEFAULT_CITY: 'Seoul'
+};
+
+const WEATHER_ICON_MAP = {
     "partly-cloudy-day": "icons/partly-cloudy-day.png",
     "partly-cloudy-night": "icons/partly-cloudy-night.png",
     "cloudy-day": "icons/cloudy-day.png",
@@ -7,247 +14,197 @@ const weatherIconMap = {
     "clear-night": "icons/clear-night.png",
     "rain": "icons/rain.png",
     "snow": "icons/snow.png",
-    "thunderstorm":"icons/thunderstorm.png",
-    "smoke":"icons/smoke.png",
+    "thunderstorm": "icons/thunderstorm.png",
+    "smoke": "icons/smoke.png",
+    "default": "icons/default.png"
 };
-let num;
-let lastValidData = null; 
-let lastCity=null;
 
-function showLoading() {
-    document.getElementById("loading").classList.remove("hidden");
+
+const createElement = (tag, className, textContent = '') => {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (textContent) element.textContent = textContent;
+    return element;
+};
+
+const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+};
+
+const formatTime = (timeString) => {
+    return timeString.slice(0, 5);
+};
+
+
+class WeatherService {
+    static async getWeatherData(city) {
+        const response = await fetch(`${CONFIG.WEATHER_API_BASE_URL}${city}?unitGroup=metric&key=${CONFIG.API_KEY}&contentType=json`);
+        if (!response.ok) throw new Error("City not found or API error");
+        return response.json();
+    }
+
+    static async getTimeData(timezone) {
+        const response = await fetch(`${CONFIG.TIME_API_BASE_URL}${timezone}`);
+        return response.json();
+    }
 }
 
-function hideLoading() {
-    document.getElementById("loading").classList.add("hidden");
+
+class WeatherUI {
+    static clearUI() {
+        ['first', 'second'].forEach(columnClass => {
+            document.querySelector(`.${columnClass}.column`).innerHTML = '';
+        });
+        document.querySelector('.week').innerHTML = '';
+    }
+
+    static showLoading(show) {
+        document.getElementById('loading').classList.toggle('hidden', !show);
+    }
+
+    static showError(message) {
+        const errorElement = createElement('p', 'err', message);
+        document.querySelector('.first.column').appendChild(errorElement);
+    }
+
+    static buildFirstColumn(weatherData, timeData) {
+        const column = document.querySelector('.first.column');
+        const fragments = [
+            this.buildDescription(weatherData.currentConditions.conditions),
+            this.buildCity(weatherData.address),
+            this.buildDateTime(timeData),
+            this.buildTemp(weatherData.currentConditions.temp),
+            this.buildIcon(weatherData.currentConditions.icon),
+            this.buildSearch()
+        ];
+        column.append(...fragments);
+    }
+
+    static buildSecondColumn(weatherData) {
+        const column = document.querySelector('.second.column');
+        const blocks = [
+            { text: "Feels Like", property: "feelslike", icon: "./images/feelslike.png", unit: "℃" },
+            { text: "Humidity", property: "humidity", icon: "./images/humidity.png", unit: "%" },
+            { text: "Chance of Precipitation", property: "precipprob", icon: "./images/rainn.png", unit: "%" },
+            { text: "Wind Speed", property: "windspeed", icon: "./images/wind.png", unit: " km/h" }
+        ];
+        blocks.forEach(block => {
+            column.appendChild(this.buildBlock(weatherData, block));
+        });
+    }
+
+    static buildWeek(weatherData, startDayIndex) {
+        const weekContainer = document.querySelector('.week');
+        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        weatherData.days.slice(1, 8).forEach((day, index) => {
+            const dayName = daysOfWeek[(startDayIndex + index + 1) % 7];
+            weekContainer.appendChild(this.buildCard(dayName, day));
+        });
+    }
+
+    static buildDescription(desc) {
+        return createElement('div', 'description', desc);
+    }
+
+    static buildCity(city) {
+        return createElement('div', 'city', city);
+    }
+
+    static buildDateTime(timeData) {
+        const dateTime = createElement('div', 'dateTime');
+        dateTime.appendChild(createElement('p', '', formatDate(timeData.datetime)));
+        dateTime.appendChild(createElement('p', '', formatTime(timeData.datetime)));
+        return dateTime;
+    }
+
+    static buildTemp(temp) {
+        return createElement('div', 'temp', `${temp}℃`);
+    }
+
+    static buildIcon(iconKey) {
+        const img = createElement('img', 'icon');
+        img.src = WEATHER_ICON_MAP[iconKey] || WEATHER_ICON_MAP.default;
+        return img;
+    }
+
+    static buildSearch() {
+        const search = createElement('div', 'search');
+        const input = createElement('input');
+        input.placeholder = "Search City...";
+        const button = createElement('button');
+        
+        button.addEventListener('click', () => WeatherApp.getTemperature(input.value));
+        input.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') WeatherApp.getTemperature(input.value);
+        });
+
+        search.append(input, button);
+        return search;
+    }
+
+    static buildBlock(weatherData, { text, property, icon, unit }) {
+        const block = createElement('div');
+        const img = createElement('img');
+        img.src = icon;
+        const textContainer = createElement('div');
+        textContainer.appendChild(createElement('p', '', text));
+        textContainer.appendChild(createElement('p', '', `${weatherData.currentConditions[property]}${unit}`));
+        block.append(img, textContainer);
+        return block;
+    }
+
+    static buildCard(day, dayData) {
+        const card = createElement('div', 'card');
+        card.appendChild(createElement('p', '', day));
+        const temp = createElement('div');
+        temp.appendChild(createElement('p', '', `${dayData.tempmax}℃`));
+        temp.appendChild(createElement('p', '', `${dayData.tempmin}℃`));
+        card.appendChild(temp);
+        card.appendChild(this.buildIcon(dayData.icon));
+        return card;
+    }
 }
 
-function clearUI() {
-    document.querySelector(".first.column").innerHTML = "";
-    document.querySelector(".second.column").innerHTML = "";
-    document.querySelector(".week").innerHTML = "";
-}
 
-function showError(){
-    const err=document.createElement("p");
-    err.classList.add("err");
-    err.textContent="Enter a valid city";
-    document.querySelector(".first.column").appendChild(err);
-}
+class WeatherApp {
+    static lastValidData = null;
+    static lastCity = null;
 
-async function getTemperature(city){
-    try{
-        clearUI();
-        showLoading();
-        lastCity = city;
-        const response = await fetch(`https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${city}?unitGroup=metric&key=JW4Y277F9AQERBFM6RHGZ3AH4&contentType=json`);
-        if(!response.ok){
-            throw new Error("City not found or API error");
+    static async getTemperature(city) {
+        try {
+            WeatherUI.clearUI();
+            WeatherUI.showLoading(true);
+            this.lastCity = city;
+
+            const weatherData = await WeatherService.getWeatherData(city);
+            this.lastValidData = weatherData;
+
+            const timeData = await WeatherService.getTimeData(weatherData.timezone);
+            
+            WeatherUI.buildFirstColumn(weatherData, timeData);
+            WeatherUI.buildSecondColumn(weatherData);
+            WeatherUI.buildWeek(weatherData, timeData.day_of_week);
+
+            WeatherUI.showLoading(false);
+        } catch (error) {
+            console.error(error);
+            if (this.lastValidData) {
+                WeatherUI.buildFirstColumn(this.lastValidData, await WeatherService.getTimeData(this.lastValidData.timezone));
+                WeatherUI.buildSecondColumn(this.lastValidData);
+                WeatherUI.buildWeek(this.lastValidData, (new Date()).getDay());
+                document.querySelector("input").value = this.lastCity;
+            }
+            WeatherUI.showLoading(false);
+            WeatherUI.showError("Enter a valid city");
         }
-        const object = await response.json();
-        lastValidData = object;
-        await buildFirstColumn(object);
-        buildSecondColumn(object);
-        buildWeek(object);
-        hideLoading();
-        console.log(object);
     }
-    catch{
-        await buildFirstColumn(lastValidData);
-        hideLoading();
-        buildSecondColumn(lastValidData);
-        buildWeek(lastValidData);
-        document.querySelector("input").value=lastCity;
-        showError();
+
+    static init() {
+        this.getTemperature(CONFIG.DEFAULT_CITY);
     }
 }
 
 
-async function getTime(timezone){
-    const response = await fetch(`http://worldtimeapi.org/api/timezone/${timezone}`);
-    const data = await response.json();
-    return extractTimeInfo(data);
-}
-
-function extractTimeInfo(data) {
-    const indexOfT=data.datetime.indexOf("T");
-    const indexOfPoint=data.datetime.indexOf(".");
-
-    const rawDate = data.datetime.slice(0, indexOfT);
-
-    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const month = months[Number(rawDate.slice(5, 7))-1];
-    const day = rawDate.slice(8, 10);
-
-    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayOfWeek = daysOfWeek[data.day_of_week];
-    num=daysOfWeek.indexOf(dayOfWeek);
-
-    const first=`${month} ${day}, ${dayOfWeek}`;
-    const second=data.datetime.slice(indexOfT+1, indexOfPoint-3);
-
-    return {first, second};
-}
-
-
-
-
-async function buildFirstColumn(object){
-    const firstColumn=document.querySelector(".first.column");
-
-    const {first, second} = await getTime(object.timezone);
-    const iconUrl = weatherIconMap[object.currentConditions.icon] || "icons/default.png";
-
-    firstColumn.appendChild(buildDescription(object.currentConditions.conditions));
-    firstColumn.appendChild(buildCity(object.address));
-    firstColumn.appendChild(buildDateTime(first, second));
-    firstColumn.appendChild(buildTemp(object.currentConditions.temp));
-    firstColumn.appendChild(buildIcon(iconUrl));
-    firstColumn.appendChild(buildSearch());
-}
-
-function buildSecondColumn(object){
-    const secondColumn=document.querySelector(".second.column");
-
-    secondColumn.appendChild(buildBlock(object, "Feels Like", "feelslike", "./images/feelslike.png"));
-    secondColumn.appendChild(buildBlock(object, "Humidity", "humidity", "./images/humidity.png"));
-    secondColumn.appendChild(buildBlock(object, "Chance of Precipitation", "precipprob", "./images/rainn.png"));
-    secondColumn.appendChild(buildBlock(object, "Wind Speed", "windspeed", "./images/wind.png"));
-}
-
-
-
-function buildBlock(object, text1, property, source){
-    const first=document.createElement("div");
-    const firstImg=document.createElement("img");
-    firstImg.src=source;
-    const textt=document.createElement("div");
-    
-    const firstP=document.createElement("p");
-    firstP.textContent=text1;
-    const secondP=document.createElement("p");
-    switch(text1){
-        case "Feels Like":
-            secondP.textContent=object.currentConditions[property]+"℃";
-            break;
-        case "Wind Speed":
-            secondP.textContent=object.currentConditions[property]+" km/h";
-            break;
-        default:
-            secondP.textContent=object.currentConditions[property]+"%";
-
-    }
-
-    textt.appendChild(firstP);
-    textt.appendChild(secondP);
-
-    first.appendChild(firstImg);
-    first.appendChild(textt);
-    return first;
-}
-
-
-function buildWeek(object){
-    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const week=document.querySelector(".week");
-    for(let i=1; i<8; i++){
-        const day=daysOfWeek[(num+i)%7];
-        const mintemp=object.days[i].tempmin;
-        const maxtemp=object.days[i].tempmax;
-        const icon=object.days[i].icon;
-        week.appendChild(buildCard(day, maxtemp, mintemp, icon));
-    }
-}
-
-function buildCard(day, maxtemp, mintemp, icon){
-    const card=document.createElement("div");
-    card.classList.add("card");
-
-    const day1=document.createElement("p");
-    day1.textContent=day;
-
-    const temp=document.createElement("div");
-    const maxtemp1=document.createElement("p");
-    maxtemp1.textContent=maxtemp+"℃";
-    const mintemp1=document.createElement("p");
-    mintemp1.textContent=mintemp+"℃";
-    temp.appendChild(maxtemp1);
-    temp.appendChild(mintemp1);
-
-    const img1=document.createElement("img");
-    img1.src=weatherIconMap[icon] || "./icons/default.png";
-
-    card.appendChild(day1);
-    card.appendChild(temp);
-    card.appendChild(img1);
-    return card;
-}
-
-
-
-
-function buildDescription(desc){
-    const description = document.createElement("div");
-    description.classList.add("description");
-    description.textContent = desc;
-    return description;
-}
-
-function buildCity(cit){
-    const city = document.createElement("div");
-    city.classList.add("city");
-    city.textContent = cit;
-    return city;
-}
-
-function buildDateTime(firs, secon){
-    const dateTime = document.createElement("div");
-    dateTime.classList.add("dateTime");
-
-    const first=document.createElement("p");
-    first.textContent=firs;
-    const second=document.createElement("p");
-    second.textContent=secon;
-
-    dateTime.appendChild(first);
-    dateTime.appendChild(second);
-    return dateTime;
-}
-
-function buildTemp(tem){
-    const temp = document.createElement("div");
-    temp.classList.add("temp");
-    temp.textContent = tem+"℃";
-    return temp;
-}
-
-function buildIcon(iconUrl){
-    const img=document.createElement("img");
-    img.classList.add("icon");
-    img.src=iconUrl;
-    return img;
-}
-
-function buildSearch(){
-    const search=document.createElement("div");
-    search.classList.add("search");
-
-    const input=document.createElement("input");
-    input.placeholder="Search City...";
-
-    const button=document.createElement("button");
-    
-    button.addEventListener("click", ()=>{
-        getTemperature(input.value);
-    });
-    input.addEventListener('keyup', (event) => {
-        if(event.key === 'Enter')
-            getTemperature(input.value);
-    });
-
-    search.appendChild(input);
-    search.appendChild(button);
-    return search;
-}
-
-getTemperature("Daejeon");
+WeatherApp.init();
